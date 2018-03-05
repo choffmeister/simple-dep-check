@@ -7,20 +7,40 @@ const { globAsync, readFileAsync } = require('../src/fileSystemAsync')
 const matchers = require('../src/matchers')
 
 const cli = yargs
-  .option('f', { alias: 'projectFolder', type: 'string' })
-  .option('s', { alias: 'sourcesPattern', type: 'string' })
-  .coerce('f', path.resolve)
-  .demandOption(['f', 's'])
+  .option('f', {
+    alias: 'projectFolder',
+    type: 'string',
+    coerce: path.resolve,
+    demandOption: true,
+  })
+  .option('s', {
+    alias: 'sourcesPattern',
+    type: 'array',
+    demandOption: true,
+  })
+  .option('v', {
+    alias: 'verbose',
+    type: 'boolean',
+    default: false,
+  })
   .strict()
 
-async function run({ projectFolder, sourcesPattern }) {
-  console.log(`Project folder: ${projectFolder}\n`)
-  console.log(`Sources pattern: ${sourcesPattern}\n`)
+async function run({ projectFolder, sourcesPattern, verbose }) {
+  if (verbose) {
+    console.log(`Project folder: ${projectFolder}\n`)
+    console.log(`Sources pattern: ${sourcesPattern}\n`)
+  }
 
   const packageJson = JSON.parse(await readFileAsync(path.join(projectFolder, 'package.json')))
-  const files = await globAsync(sourcesPattern, { cwd: projectFolder })
+  const files = sortedUniq(
+    orderBy(flatten(await Promise.all(sourcesPattern.map(pattern => globAsync(pattern, { cwd: projectFolder })))))
+  )
 
-  console.log(`Matched source files: ${files.length}\n`)
+  if (verbose) {
+    console.log(`Source files:`)
+    files.forEach(file => console.log(`- ${file}`))
+    console.log()
+  }
 
   const imports = flatten(
     await Promise.all(
