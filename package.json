@@ -1,0 +1,30 @@
+{
+  "name": "@choffmeister/simple-dep-check-ts",
+  "version": "0.1.0-rc1",
+  "license": "MIT",
+  "author": {
+    "name": "Christian Hoffmeister",
+    "email": "mail@choffmeister.de"
+  },
+  "bin": {
+    "simple-dep-check-ts": "./bin/simple-dep-check-ts"
+  },
+  "scripts": {
+    "lint-fix": "yarn prettier --write",
+    "lint": "yarn prettier --list-different",
+    "prettier": "prettier 'bin/*' 'src/**/*.js'",
+    "test": "yarn lint"
+  },
+  "dependencies": {
+    "glob": "^7.1.2",
+    "lodash": "^4.17.5",
+    "yargs": "^11.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^1.11.1"
+  },
+  "engines": {
+    "node": ">=8.0.0",
+    "yarn": ">=1.5.0"
+  }
+}

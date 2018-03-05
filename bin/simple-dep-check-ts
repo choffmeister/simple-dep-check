@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+
+const { difference, flatten, orderBy, sortedUniq } = require('lodash')
+const yargs = require('yargs')
+const { globAsync, readFileAsync } = require('../src/fileSystemAsync')
+
+const cli = yargs
+  .option('p', { alias: 'packageJsonFile', type: 'string' })
+  .option('s', { alias: 'sourcesPattern', type: 'string' })
+  .demandOption(['p', 's'])
+  .strict()
+
+const regexes = [
+  /import '([^']+)'/,
+  /import "([^"]+)"/,
+  /import (?:.*) from '([^']+)'/,
+  /import (?:.*) from "([^"]+)"/,
+  /require\('([^']+)'\)/,
+  /require\("([^"]+)"\)/,
+]
+
+async function run({ packageJsonFile, sourcesPattern }) {
+  const packageJson = JSON.parse(await readFileAsync(packageJsonFile))
+
+  const files = await globAsync(sourcesPattern)
+  const imports = flatten(
+    await Promise.all(
+      files.map(async file => {
+        const content = await readFileAsync(file)
+        const lines = content.replace('\r\n', '\n').split('\n')
+        const importMatches = lines
+          .map(line => regexes.reduce((match, regex) => match || line.match(regex), null))
+          .filter(match => !!match)
+        return importMatches.map(match => ({
+          file,
+          import: match[1],
+        }))
+      })
+    )
+  )
+
+  const nodeModulesImports = sortedUniq(
+    orderBy(
+      imports.filter(i => i.import.match(/^[^\.\/]/)).map(i => {
+        if (i.import[0] === '@') {
+          return i.import.match(/^(@(?:[^\/]+)\/(?:[^\/]+))/)[1]
+        } else {
+          return i.import.match(/^([^\/]+)/)[1]
+        }
+      })
+    )
+  )
+  const packageJsonDependencies = Object.keys(packageJson.dependencies || {})
+
+  console.log(difference(packageJsonDependencies, nodeModulesImports))
+}
+
+run(cli.argv).catch(err => {
+  console.error(err)
+  process.exit(1)
+})
