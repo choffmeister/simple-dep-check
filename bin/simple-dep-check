@@ -1,23 +1,16 @@
 #!/usr/bin/env node
 
 const { difference, flatten, orderBy, sortedUniq } = require('lodash')
+const path = require('path')
 const yargs = require('yargs')
 const { globAsync, readFileAsync } = require('../src/fileSystemAsync')
+const matchers = require('../src/matchers')
 
 const cli = yargs
   .option('p', { alias: 'packageJsonFile', type: 'string' })
   .option('s', { alias: 'sourcesPattern', type: 'string' })
   .demandOption(['p', 's'])
   .strict()
-
-const regexes = [
-  /import '([^']+)'/,
-  /import "([^"]+)"/,
-  /import (?:.*) from '([^']+)'/,
-  /import (?:.*) from "([^"]+)"/,
-  /require\('([^']+)'\)/,
-  /require\("([^"]+)"\)/,
-]
 
 async function run({ packageJsonFile, sourcesPattern }) {
   const packageJson = JSON.parse(await readFileAsync(packageJsonFile))
@@ -26,10 +19,15 @@ async function run({ packageJsonFile, sourcesPattern }) {
   const imports = flatten(
     await Promise.all(
       files.map(async file => {
+        const fileExtension = path.extname(file)
         const content = await readFileAsync(file)
         const lines = content.replace('\r\n', '\n').split('\n')
         const importMatches = lines
-          .map(line => regexes.reduce((match, regex) => match || line.match(regex), null))
+          .map(line =>
+            matchers
+              .filter(matcher => matcher.extensions.indexOf(fileExtension) >= 0)
+              .reduce((match, matcher) => match || line.match(matcher.regex), null)
+          )
           .filter(match => !!match)
         return importMatches.map(match => ({
           file,
@@ -39,7 +37,7 @@ async function run({ packageJsonFile, sourcesPattern }) {
     )
   )
 
-  const nodeModulesImports = sortedUniq(
+  const usedImports = sortedUniq(
     orderBy(
       imports.filter(i => i.import.match(/^[^\.\/]/)).map(i => {
         if (i.import[0] === '@') {
@@ -50,9 +48,30 @@ async function run({ packageJsonFile, sourcesPattern }) {
       })
     )
   )
-  const packageJsonDependencies = Object.keys(packageJson.dependencies || {})
 
-  console.log(difference(packageJsonDependencies, nodeModulesImports))
+  const dependencies = Object.keys(packageJson.dependencies || {})
+  const unusedDependencies = difference(dependencies, usedImports)
+  const devDependencies = Object.keys(packageJson.devDependencies || {})
+  const unusedDevDependencies = difference(devDependencies, usedImports)
+
+  console.log('Unused dependencies:')
+  unusedDependencies
+    .filter(dep => {
+      return true
+    })
+    .forEach(dep => console.log(`- ${dep}`))
+
+  console.log('Unused dev dependencies:')
+  unusedDevDependencies
+    .filter(dep => {
+      const match = dep.match(/^@types\/(.*)$/)
+      if (match) {
+        return unusedDependencies.indexOf(match[1]) >= 0
+      } else {
+        return true
+      }
+    })
+    .forEach(dep => console.log(`- ${dep}`))
 }
 
 run(cli.argv).catch(err => {

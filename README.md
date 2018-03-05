@@ -1,1 +1,1 @@
-# simple-dep-check-ts
+# simple-dep-check

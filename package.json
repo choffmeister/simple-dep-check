@@ -1,5 +1,5 @@
 {
-  "name": "@choffmeister/simple-dep-check-ts",
+  "name": "@choffmeister/simple-dep-check",
   "version": "0.1.0-rc1",
   "license": "MIT",
   "author": {
@@ -7,7 +7,7 @@
     "email": "mail@choffmeister.de"
   },
   "bin": {
-    "simple-dep-check-ts": "./bin/simple-dep-check-ts"
+    "simple-dep-check": "./bin/simple-dep-check"
   },
   "scripts": {
     "lint-fix": "yarn prettier --write",
