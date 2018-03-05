@@ -5,9 +5,9 @@ function readFileAsync(file) {
   return new Promise((resolve, reject) => fs.readFile(file, 'utf8', (err, res) => (!err ? resolve(res) : reject(err))))
 }
 
-function globAsync(pattern) {
+function globAsync(pattern, opts) {
   return new Promise((resolve, reject) => {
-    glob(pattern, (err, files) => (!err ? resolve(files) : reject(err)))
+    glob(pattern, opts, (err, files) => (!err ? resolve(files) : reject(err)))
   })
 }
 

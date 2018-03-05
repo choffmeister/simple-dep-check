@@ -7,20 +7,26 @@ const { globAsync, readFileAsync } = require('../src/fileSystemAsync')
 const matchers = require('../src/matchers')
 
 const cli = yargs
-  .option('p', { alias: 'packageJsonFile', type: 'string' })
+  .option('f', { alias: 'projectFolder', type: 'string' })
   .option('s', { alias: 'sourcesPattern', type: 'string' })
-  .demandOption(['p', 's'])
+  .coerce('f', path.resolve)
+  .demandOption(['f', 's'])
   .strict()
 
-async function run({ packageJsonFile, sourcesPattern }) {
-  const packageJson = JSON.parse(await readFileAsync(packageJsonFile))
+async function run({ projectFolder, sourcesPattern }) {
+  console.log(`Project folder: ${projectFolder}\n`)
+  console.log(`Sources pattern: ${sourcesPattern}\n`)
 
-  const files = await globAsync(sourcesPattern)
+  const packageJson = JSON.parse(await readFileAsync(path.join(projectFolder, 'package.json')))
+  const files = await globAsync(sourcesPattern, { cwd: projectFolder })
+
+  console.log(`Matched source files: ${files.length}\n`)
+
   const imports = flatten(
     await Promise.all(
       files.map(async file => {
         const fileExtension = path.extname(file)
-        const content = await readFileAsync(file)
+        const content = await readFileAsync(path.join(projectFolder, file))
         const lines = content.replace('\r\n', '\n').split('\n')
         const importMatches = lines
           .map(line =>
@@ -60,6 +66,7 @@ async function run({ packageJsonFile, sourcesPattern }) {
       return true
     })
     .forEach(dep => console.log(`- ${dep}`))
+  console.log()
 
   console.log('Unused dev dependencies:')
   unusedDevDependencies
@@ -72,6 +79,7 @@ async function run({ packageJsonFile, sourcesPattern }) {
       }
     })
     .forEach(dep => console.log(`- ${dep}`))
+  console.log()
 }
 
 run(cli.argv).catch(err => {
