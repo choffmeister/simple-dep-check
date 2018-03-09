@@ -93,7 +93,10 @@ async function run({ projectFolder, sourcesPattern, verbose }) {
     .filter(dep => {
       const match = dep.match(/^@types\/(.*)$/)
       if (match) {
-        return unusedDependencies.indexOf(match[1]) >= 0
+        return (
+          (dependencies.indexOf(match[1]) < 0 && devDependencies.indexOf(match[1]) <= 0) ||
+          (unusedDependencies.indexOf(match[1]) >= 0 || unusedDevDependencies.indexOf(match[1]) >= 0)
+        )
       } else {
         return true
       }
